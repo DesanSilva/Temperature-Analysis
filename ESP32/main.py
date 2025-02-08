@@ -5,6 +5,7 @@ import ujson
 from umqtt.simple import MQTTClient
 import esp32
 import ntptime
+import random
 from sensors import initialize_sensors
 
 #--------------------------------------------------------------------------------------------------------------------------
@@ -86,14 +87,15 @@ while True:
             mqtt.publish(pub_topic, mssg)
             print(mssg)
             print("-" * 30)
-        time.sleep(600)
+        # random sampling interval to avoid periodic patterns    
+        time.sleep(random.uniform(10, 300))
         
     except KeyboardInterrupt:
         print("Program stopped")
         break
     except Exception as e:
         print(f"Error in main loop: {e}")
-        time.sleep(600)
+        time.sleep(2)
 
 wlan.disconnect()
 #machine.reset()
