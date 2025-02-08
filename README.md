@@ -1,7 +1,7 @@
 # Temperature-Analysis
 IoT data collection, database storage and retrieval and Analysis of the associations of temperature with humidity, UV intensity and light intensity.\
 \
-The instructions for use and setup are given below:
+The instructions for use and setup are given below:\
 load_data_atlas.py contains the code for maintaining the AWS -> mongoDB connection. should be run on terminal.\
 All files inside ESP32 folder need to be inserted into the ESP32.\
 ESP32 must be connected to the sensors with the information given below.\
