@@ -19,7 +19,7 @@ GND -> GND
 VCC -> 3v3\
 SCL -> G17\
 SDA -> G16\
-GND -> GND\
+GND -> GND
 
 ## Entering Credentials and Certificates
 
