@@ -1,0 +1,20 @@
+# Ignore .env files
+.env
+
+# Ignore config.py inside a folder at the same level as .gitignore
+iot_device/config.py
+
+# Ignore certificates
+iot_device/certificates/*
+publish_code/certificates/*
+
+publish_code/mqtt_connection.log
+
+# Ignore R history files
+data_analysis_R/.Rhistory
+
+# Ignore R workspace files
+data_analysis_R/.RData
+
+# Ignore R project user settings
+data_analysis_R/.Rproj.user/
