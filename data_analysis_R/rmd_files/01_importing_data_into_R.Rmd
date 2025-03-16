@@ -1,0 +1,34 @@
+---
+title: "01. Importing data into R"
+author: "COADDS24.1F-011/030/032"
+output: 
+  html_document:
+    css: ../reports/styles.css
+    code_folding: show
+knit: (function(inputFile, encoding) {
+      rmarkdown::render(inputFile, output_dir = "../reports")})
+---
+
+# Loading libraries
+```{r}
+required_packages <- c("dotenv", "mongolite")
+
+for (package in required_packages) {
+  if (!suppressPackageStartupMessages(require(package, character.only = TRUE))) {
+    install.packages(package)
+  }
+  suppressPackageStartupMessages(library(package, character.only = TRUE))
+  cat("loaded package:", package,"\n")
+}
+```
+# Connecting to MongoDB and getting data
+```{r}
+load_dot_env("../../.env")
+mongo_url <- Sys.getenv("MONGODB_URL")
+
+sensor_data = mongo(collection="sensor_data", db="project", url=mongo_url)
+
+raw_df <- sensor_data$find('{}', '{"_id":0, "raw_data": 0}')
+write.csv(raw_df, file = "../data/01_raw_dataframe.csv", row.names = FALSE)
+head(raw_df)
+```

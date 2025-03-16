@@ -1,0 +1,115 @@
+---
+title: "05. Evaluating model performance"
+author: "COADDS24.1F-011/030/032"
+output: 
+  html_document:
+    css: ../reports/styles.css
+    code_folding: show
+knit: (function(inputFile, encoding) {
+      rmarkdown::render(inputFile, output_dir = "../reports")})
+---
+# Loading libraries
+```{r}
+source("functions.R")
+
+required_packages <- c("ggplot2")
+
+for (package in required_packages) {
+  if (!suppressPackageStartupMessages(require(package, character.only = TRUE))) {
+    install.packages(package)
+  }
+  suppressPackageStartupMessages(library(package, character.only = TRUE))
+  cat("loaded package:", package,"\n")
+}
+
+```
+# Obtaining predicted values and approximating actual values
+```{r}
+df <- read.csv("../data/06_scaled.csv", header=TRUE)
+
+train <- read.csv("../data/04_no_outliers.csv", header=TRUE)
+test <- read.csv("../data/03_raw_test_data.csv", header=TRUE)
+
+
+model <- lm(temperature ~ humidity + light_level + uv_level, data = df)
+
+test_transformed <- reciprocal_transform(test)
+test_scaled <- min_max_scale(test_transformed, 0, 1)
+
+predictions_scaled <- predict(model, newdata = test_scaled)
+
+approx_predictions <- reverse_transform(predictions_scaled, train)
+
+df <- data.frame(actual = test_scaled$temperature, predicted = predictions_scaled, approx_prediction = approx_predictions)
+write.csv(df, file = "../data/07_predictions.csv", row.names = FALSE)
+print(head(df))
+```
+* The test data is transformed and scaled in the same method as the train data, and values are predicted from the MLR model.
+* the scaled predictions are reverse transformed using the opposite of the transformation, and an approximate predicted temperature is obtained.
+
+# Comparing actual and predicted values
+
+The scaled predictions are compared with actual scaled data. The model deviates from the reference line by a small value but it is relatively accurate
+```{r, message=FALSE, warning=FALSE}
+p <- ggplot(df, aes(x = actual , y = predicted)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm',span = 0.1, color = "#ff0000", fill = "#ff4f4f") + 
+  geom_abline(linetype=3, colour = "blue") +
+  labs(x = "Actual Temperature (scaled)", y = "Predicted Temperature (scaled)", title = "Actual vs Predicted Temperature")
+
+ggsave("../figures/05_actual_vs_predicted_temperature.png", plot = p, width = 6, height = 4, dpi = 300)
+print(p)
+```
+\
+
+# Residual analysis of predicted data
+
+Residuals are scattered randomly and centered around the 0 residual line. Therefore predictions have linearity as expected
+```{r}
+df$residuals <- df$actual - df$predicted
+
+p <- ggplot(df, aes(x = predicted, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", linewidth = 1) +
+  labs(x = "Predicted Temperature", y = "Residuals", title = "Residuals vs Predicted Values")
+
+ggsave("../figures/05_residuals_vs_predicted_values.png", plot = p, width = 6, height = 4, dpi = 300)
+print(p)
+```
+\
+
+# Model Performance Metrics
+
+```{r}
+mae <- mean(abs(df$actual - df$predicted))
+mse <- mean((df$actual - df$predicted)^2)
+rmse <- sqrt(mse)
+r_squared <- summary(model)$r.squared
+adjusted_r_squared <- summary(model)$adj.r.squared
+
+output <- sprintf("
+Model Performance Metrics:
+--------------------------
+- Mean Absolute Error (MAE):      %.6f
+- Mean Squared Error (MSE):       %.6f
+- Root Mean Squared Error (RMSE): %.6f
+- R-squared:                      %.6f
+- Adjusted R-squared:             %.6f
+", mae, mse, rmse, r_squared, adjusted_r_squared)
+
+cat(output)
+```
+
+### Mean Absolute Error (MAE) interpretation
+the model's predictions vary by roughly 0.058064 scaled units\
+low value indicates good performance
+
+### Mean Squared Error (MSE) and Root Mean Squared Error (RMSE) interpretation
+the model's predictions are generally closer to the true values\
+low value indicates good performance
+
+### R-squared and Adjusted R-squared interpretation
+Both values are closer to 1 which indicates that the model explains more of the variation in the response variable
+
+## Conclusion
+According to all performance metrics and visualizations the model can be considered accurate and successful.

@@ -1,0 +1,169 @@
+# Functions needed for 01----------------------------------------------------------------------------------------------------
+
+info_univariate <- list(
+  variables = c("temperature", "humidity", "light_level", "uv_level"),
+  colors = c(temperature = "blue", humidity = "green",light_level = "orange",  uv_level = "purple"),
+  units = c(temperature = "°C", humidity = "%", light_level = "lux", uv_level = "mW/cm²")
+)
+
+#--------------------------------------------------------------------------------------------------------------------------
+info_bivariate <- list(
+  variables = c("humidity", "uv_level", "light_level", "temperature"),
+  colors = c(humidity = "green", uv_level = "purple", light_level = "orange", temperature = "blue"),
+  units = c(humidity = "%", uv_level = "mW/cm²", light_level = "lux", temperature = "°C")
+)
+
+#--------------------------------------------------------------------------------------------------------------------------
+create_plots <- function(data, info_list, plot_type, file_no, filename, ncol = 2) {
+  plots <- list()
+  
+  for (var in info_list$variables) {
+    if (plot_type == "histogram") {
+      p <- ggplot(data, aes(x = .data[[var]])) +
+        geom_histogram(bins = 50, fill = info_list$colors[var], color = "black") +
+        labs(title = paste(var, "Distribution"), x = paste(var, "(", info_list$units[var], ")", sep = ""), y = "Count")
+      
+    } else if (plot_type == "density") {
+      p <- ggplot(data, aes(x = .data[[var]])) +
+        geom_density(fill = info_list$colors[var], color = "black") +
+        labs(title = paste(var, "Density Plot"), x = paste(var, "(", info_list$units[var], ")", sep = ""), y = "Density")
+      
+    } else if (plot_type == "boxplot") {
+      p <- ggplot(data, aes(x = "", y = .data[[var]])) +
+        geom_boxplot(fill = info_list$colors[var], color = "black") +
+        labs(title = paste("boxplot of", var), x = var, y = paste(var, "(", info_list$units[var], ")", sep = "")) +
+        theme(plot.title = element_text(size = 9))
+      
+    } else if (plot_type == "qq") {
+      p <- ggplot(data, aes(sample = .data[[var]])) +
+        geom_qq(color = info_list$colors[var]) +
+        geom_qq_line(color = "black") +
+        labs(title = paste(var, "Q-Q Plot"), x = "Theoretical Quantiles", y = "Sample Quantiles")
+    }
+    
+    plot_key <- ifelse(plot_type == "qq", paste0(var, "_qq"), var)
+    plots[[plot_key]] <- p
+  }
+  
+  final_plot <- plot_grid(plotlist = plots, ncol = ifelse(plot_type == "boxplot", 4, ncol))
+  ggsave(paste0("../figures/", file_no, "_", filename, ".png"), plot = final_plot, width = 6, height = 4, dpi = 300)
+  print(final_plot)
+}
+
+#--------------------------------------------------------------------------------------------------------------------------
+correlation <- function(data, mapping) {
+  x_var <- rlang::as_name(mapping$x)
+  y_var <- rlang::as_name(mapping$y)
+  
+  corr_val <- cor(data[[x_var]], data[[y_var]], use = "pairwise.complete.obs")
+  corr_palette <- colorRampPalette(rev(brewer.pal(11, "RdBu")))(200)
+  
+  ggplot() + 
+    geom_raster(aes(x = 0, y = 0), fill = corr_palette[round(((-corr_val + 1) / 2) * 199) + 1]) +
+    annotate("text", x = 0, y = 0, label = sprintf("%.4f", corr_val)) +
+    theme_void()
+}
+
+#--------------------------------------------------------------------------------------------------------------------------
+scatter <- function(data, mapping) {
+  ggplot(data = data, mapping = mapping) +
+    geom_point(size = 0.3) +
+    geom_smooth(method = "lm", se = TRUE, color = "red", linewidth = 0.75)
+}
+
+#--------------------------------------------------------------------------------------------------------------------------
+diagonal <- function(data, mapping) {
+  var <- rlang::as_name(mapping$x)
+  ggplot(data = data, mapping = mapping) +
+    geom_density(fill = info_bivariate$colors[[var]])
+}
+
+#--------------------------------------------------------------------------------------------------------------------------
+create_bivariate_plot <- function(data, info_list, file_no) {
+  column_labels <- paste0(info_list$variables, " (", info_list$units[info_list$variables], ")")
+  
+  bivariate_plot <- ggpairs(data, columns = info_list$variables,
+    title = "Bivariate Analysis with Correlation Coefficients",
+    lower = list(continuous = scatter),
+    upper = list(continuous = correlation),
+    diag = list(continuous = diagonal),
+    axisLabels = "show",
+    columnLabels = column_labels) +
+    
+    theme(strip.text = element_text(face = "bold", color = "black", size = 7),
+          plot.title = element_text(size = 14, face = "bold", hjust = 0.5))
+
+  
+  ggsave(paste0("../figures/", file_no, "_bivariate_plot.png"), plot = bivariate_plot, width = 7, height = 4, dpi = 300)
+  print(bivariate_plot)
+}
+
+#--------------------------------------------------------------------------------------------------------------------------
+create_multivariate_plot <- function(data, info, file_no) {
+  multivariate_plot <- ggplot(data) + 
+    geom_point(aes(x = humidity, y = temperature), color = info$colors["humidity"], alpha = 0.7) +
+    geom_point(aes(x = light_level, y = temperature), color = info$colors["light_level"], alpha = 0.7) +
+    geom_point(aes(x = uv_level, y = temperature), color = info$colors["uv_level"], alpha = 0.7) +
+    stat_smooth(aes(x = humidity, y = temperature), method = "lm", color = "#000000") +
+    stat_smooth(aes(x = light_level, y = temperature), method = "lm", color = "#000000") +
+    stat_smooth(aes(x = uv_level, y = temperature), method = "lm", color = "#000000") +
+    labs(x = paste("Predictors (", paste(info$units[c("humidity", "light_level", "uv_level")], collapse = ", "), ")"),
+      y = paste0("Temperature (", info$units["temperature"], ")"),
+      title = "Multivariate Analysis: Temperature vs. Predictors"
+    )
+  
+
+  ggsave(paste0("../figures/", file_no, "_multivariate_plot.png"), plot = multivariate_plot, width = 10, height = 6, dpi = 300)
+  
+  print(multivariate_plot)
+}
+
+# Functions needed for 03-----------------------------------------------------------------------------------------------------
+
+findOutliers <- function(data, info) {
+  for (var in info$variables) {
+    Q1 <- quantile(data[[var]], 0.25)
+    Q3 <- quantile(data[[var]], 0.75)
+    IQR <- Q3 - Q1
+    
+    lower_bound <- Q1 - 1.5 * IQR
+    upper_bound <- Q3 + 1.5 * IQR
+    
+    outlier_indices <- which(data[[var]] < lower_bound | data[[var]] > upper_bound)
+    outlier_values <- data[[var]][outlier_indices]
+    
+    cat("Outliers in", var, ":\n\n", sort(outlier_values), "\n\n")
+    cat("Total:", length(outlier_values), "\n\n")
+    cat(rep("_", 50), "\n\n")
+  }
+}
+
+#--------------------------------------------------------------------------------------------------------------------------
+reciprocal_transform <- function(data) {  
+  data[] <- lapply(data, function(x) {  
+    x_adj <- ifelse(x == 0, 1e-8, x)  
+    return(1 / x_adj)  
+  })  
+  return(data)  
+} 
+
+#--------------------------------------------------------------------------------------------------------------------------
+min_max_scale <- function(data, new_min, new_max) {
+  scaled_dataframe <- as.data.frame(lapply(data, function(column) {
+    (column - min(column)) / (max(column) - min(column)) * (new_max - new_min) + new_min
+  }))
+  return(scaled_dataframe)
+}
+
+# Functions needed for 04-----------------------------------------------------------------------------------------------------
+
+reverse_transform <- function(values, train) {
+  min <- min(train$temperature)
+  max <- max(train$temperature)
+  
+  original_scaled <- (values * (max - min)) + min
+  original_values <- 1 / original_scaled
+
+  
+  return(original_scaled)
+}

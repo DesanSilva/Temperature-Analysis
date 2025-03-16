@@ -1,0 +1,53 @@
+body {
+  background-color: #121212;
+  color: #ffffff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+h1 {
+  color: #00e6e6;
+  font-size: 2em;
+  margin-top: 1.5em;
+  border-bottom: 2px solid #ff3d00;
+  padding-bottom: 0.3em;
+}
+
+h2 {
+  color: #ffcc00;
+  font-size: 1.7em;
+}
+
+h3 {
+  color: #ff4081;
+  font-size: 1.4em;
+}
+
+pre {
+  background-color: #1e1e1e;
+  color: #ffeb3b;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #7b1fa2;
+  box-shadow: 0 0 15px rgba(123, 31, 162, 0.3);
+  overflow-x: auto;
+  margin: 15px 0;
+}
+
+pre.r-output {
+  background-color: #0d253f;
+  color: #c8e6c9;
+  border: 1px solid #01579b;
+  border-left: 4px solid #2196f3;
+  box-shadow: 0 0 15px rgba(33, 150, 243, 0.3);
+}
+
+pre:not(.sourceCode) {
+  background-color: #0d253f;
+  color: #c8e6c9;
+  border: 1px solid #01579b;
+  border-left: 4px solid #2196f3;
+}

@@ -1,0 +1,103 @@
+---
+title: "02. Descriptive statistics"
+author: "COADDS24.1F-011/030/032"
+output: 
+  html_document:
+    css: ../reports/styles.css
+    code_folding: show
+knit: (function(inputFile, encoding) {
+      rmarkdown::render(inputFile, output_dir = "../reports")})
+---
+# Loading libraries
+```{r}
+source("functions.R")
+
+required_packages <- c("dplyr", "ggplot2", "cowplot", "GGally", "rlang", "corrplot", "RColorBrewer")
+
+for (package in required_packages) {
+  if (!suppressPackageStartupMessages(require(package, character.only = TRUE))) {
+    install.packages(package)
+  }
+  suppressPackageStartupMessages(library(package, character.only = TRUE))
+  cat("loaded package:", package,"\n")
+}
+```
+# Separating Train and Test data
+```{r}
+df <- read.csv("../data/01_raw_dataframe.csv", header=TRUE)
+
+set.seed(91)
+
+train <- sample_frac(df, 0.8)
+
+train.data <- as.numeric(rownames(train))
+test <- df[-train.data,]
+
+write.csv(train, "../data/02_raw_train_data.csv", row.names = FALSE)
+write.csv(test, "../data/03_raw_test_data.csv", row.names = FALSE)
+```
+an 80% - 20% split was used between training and testing data (using dplyr)
+
+# Checking variables and data types
+```{r}
+glimpse(train)
+```
+## Insights:
+
+* the train dataset is still large (2,864 rows) and will likely create an accurate model
+* Data is quantitative and continuous
+* All data types are double, which is needed for accuracy
+
+# Checking Summary
+```{r}
+summary(train)
+```
+
+## Insights:
+
+* Ranges of data are different, scaling might be needed at some step of the preprocessing.
+
+# Univariate Analysis
+
+```{r, message=FALSE, warning=FALSE}
+create_plots(train, info_univariate,"histogram", "01", "histograms")
+create_plots(train, info_univariate,"density", "01", "density_plots")
+create_plots(train, info_univariate,"boxplot", "01", "boxplots", 4)
+create_plots(train, info_univariate,"qq", "01", "Q-Q_plots")
+```
+
+## Insights:
+
+* All variables may have outliers.
+* They are not similar to normal gaussian distributions.
+* Most distributions are skewed.
+* Humidity data has the best quality (closest to normal distribution, less outliers, less skewness).
+* Light_level data has the worst quality.
+* Q-Q plots show that variables do not have a significant similarity to a normal distribution.
+
+# Bivariate Analysis
+
+```{r, message=FALSE, warning=FALSE}
+create_bivariate_plot(train, info_bivariate, "01")
+```
+
+## Insights:
+
+* Temperature and humidity variables have a high negative correlation of -0.9013
+* Temperature and uv_level variables have a low positive correlation of 0.3840
+* Temperature and light_level variables have a very low positive correlation of 0.2337
+* Once again it is visible that humidity has the best data quality (low residuals and high correlation).
+* Expected outcome of performing a multiple linear regression is that light_level will show no statistically significant relationship but the other variables will.
+
+# Multivariate analysis
+
+```{r, message=FALSE, warning=FALSE}
+create_multivariate_plot(train, info_univariate, "01")
+```
+
+## Insights:
+
+* Since all variables have different units, they take different ranges.
+* To make the data usable, scaling will have to be done.
+
+

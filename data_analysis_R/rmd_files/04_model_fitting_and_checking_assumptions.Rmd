@@ -1,0 +1,156 @@
+---
+title: "04. Model fitting and checking assumptions"
+author: "COADDS24.1F-011/030/032"
+output: 
+  html_document:
+    css: ../reports/styles.css
+    code_folding: show
+knit: (function(inputFile, encoding) {
+      rmarkdown::render(inputFile, output_dir = "../reports")})
+---
+
+# Loading libraries
+
+```{r}
+source("functions.R")
+
+required_packages <- c("ggplot2", "lmtest", "car")
+
+for (package in required_packages) {
+  if (!suppressPackageStartupMessages(require(package, character.only = TRUE))) {
+    install.packages(package)
+  }
+  suppressPackageStartupMessages(library(package, character.only = TRUE))
+  cat("loaded package:", package,"\n")
+}
+```
+
+# Analysis of the fitted model
+```{r}
+df <- read.csv("../data/06_scaled.csv", header=TRUE)
+
+model <- lm(temperature ~ humidity + light_level + uv_level, data = df)
+
+print(summary(model, diagnostics=TRUE))
+```
+## Summary Interpretation
+
+* The MLR model is represented as $$\hat{Y} = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_3 + \epsilon$$
+where,\
+$\hat{Y}$ = Predicted Temperature\
+$\beta_0$ = y intercept term\
+$X_1, X_2, X_3$ = independent variables (Humidity,Light intensity,UV intensity)\
+$\beta_1, \beta_2, \beta_3$ =  regression coefficients of Humidity,Light intensity,UV intensity \
+$\epsilon$ = error term/residuals
+
+* Humidity has a $p-value < 0.001$ (Signif.code: '\*\*\*' [0, 0.001]). therefore the humidity variable shows a high statistically significant relationship with temperature at the 5% significance level.
+
+* null hypothesis for $X_1$ predictor is rejected at 95% confidence level, accept $𝐻_1: \beta_1 ≠ 0$
+
+* light_level has a $p-value > 0.05$ (Signif.code:' '[0.05, 1]). Therefore, the light_level variable does not show a statistically significant relationship with temperature at the 5% significance level.
+
+* null hypothesis for $X_2$ predictor is accepted at 95% confidence level, accept $𝐻_0: \beta_2 = 0$
+
+* uv_level has a $p-value < 0.001$ (Signif.code: '\*\*\*' [0, 0.001]). therefore the uv_level variable shows a high statistically significant relationship with temperature at the 5% significance level.
+
+* null hypothesis for $X_3$ predictor is rejected at 95% confidence level, accept $𝐻_1: \beta_3 ≠ 0$
+
+* Overall null hypothesis is rejected $(H_0: \beta_0 = \beta_1 = \beta_2 = \beta_3 = 0)$. accept alternate hypothesis
+
+### Conclusion
+
+Humidity and uv_level variables show high statistically significant relationships with temperature while light_level does not show a statistically significant relationship with temperature at the 5% significance level. $$H_1: \exists \beta_i \neq 0, \text{ for at least one } i \in \{1,2,3\}$$.
+
+Therefore the final regression model is interpreted as $$\hat{Y} = (0.724744) + (-0.888851) X_1 + (-0.002041) X_2 + (0.144616) X_3 \pm (0.0611)$$
+
+## Residuals vs Fitted Plot (Linearity)
+```{r}
+ggplot_data <- data.frame(fitted = model$fitted.values, residuals = model$residuals)
+p <- ggplot(ggplot_data, aes(x = fitted, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, color = "red", linewidth = 1) +
+  labs(x = "Fitted Values", y = "Residuals", title = "Residuals vs Fitted")
+
+ggsave("../figures/04_residuals_vs_fitted_plot.png", plot = p, width = 6, height = 4, dpi = 300)
+print(p)
+```
+
+### Objective
+to check if there is a linear relationship between predictors and the response (linearity).
+
+### Conclusion
+Residuals are scattered but lie close to the 0 residual line (accurate values)\
+Therefore, The model captures the trend correctly and errors are randomly distributed. There is a linear relationship between predictors and the response.
+
+## Durbin-Watson Test (Independence)
+```{r}
+lmtest::dwtest(model)
+```
+
+### Objective
+
+to check if the error terms are independent or if they exhibit a pattern over time (autocorrelation)
+
+* $H_0$ - residuals have no autocorrelation
+* $H_1$ - true autocorrelation is greater than 0
+
+### Conclusion
+
+$H_0$ is accepted at $\alpha = 0.05$ (95% confidence level) since $p-value > 0.05$, residuals have no autocorrelation.
+
+## QQ Plot and Shapiro-Wilk Test for Residuals (Normality)
+```{r}
+residuals_df <- data.frame(residuals = model$residuals)
+p <- ggplot(residuals_df, aes(sample = residuals)) +
+  geom_qq() +
+  geom_qq_line(color = "red", linewidth = 1) +
+  labs(title = "QQ Plot of Residuals", x = "Theoretical Quantiles", y = "Sample Quantiles")
+
+ggsave("../figures/04_residual_Q-Q_plot.png", plot = p, width = 6, height = 4, dpi = 300)
+print(p)
+
+shapiro.test(model$residuals)
+```
+
+### Objective
+
+to check whether the distribution of samples follow a normal distribution\
+
+* $H_0$ - the residuals are not significantly different from a normal population
+* $H_1$ - the residuals are different from a normal population
+
+### Conclusion
+
+$H_0$ is rejected at $\alpha = 0.05$ (95% confidence level) since $p-value < 0.05$, residuals do not follow a normal distribution.
+
+### Q-Q plot interpretation
+Although the shapiro test does not confirm normality, the residual points mostly fall on the Q-Q plot reference line, therefore it can be assumed that residuals follow a normal distribution
+
+## non constant variance test (Homomscedasticity)
+```{r}
+ncvTest(model)
+```
+
+### Objective
+
+to check the if the variance of residuals are equal (checking for homoscedasticity)\
+
+* $H_0$ - Homoscedasticity is present (the residuals have constant variance)
+* $H_a$ - Homoscedasticity is not present (the residuals do not have constant variance)
+
+### Conclusion
+
+$H_0$ is accepted at $\alpha = 0.05$ (95% confidence level) since $p-value > 0.05$, residuals have constant variance, MLR model is homoscedastic
+
+## Variance Inflation Factor (VIF) (Multicollinearity)
+```{r}
+car::vif(model)
+```
+
+### Objective
+
+Identifying if multicollinearity exists within independent variables
+
+### Conclusion
+
+for all variables, the $1<VIF<5$ which shows a very low correlation with other predictors which is acceptable . THere is no significant multicollinearity between the predictor variables

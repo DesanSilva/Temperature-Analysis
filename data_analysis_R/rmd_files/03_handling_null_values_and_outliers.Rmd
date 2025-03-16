@@ -1,0 +1,92 @@
+---
+title: "03. Handling null values and outliers"
+author: "COADDS24.1F-011/030/032"
+output: 
+  html_document:
+    css: ../reports/styles.css
+    code_folding: show
+knit: (function(inputFile, encoding) {
+      rmarkdown::render(inputFile, output_dir = "../reports")})
+---
+# Loading libraries
+```{r}
+source("functions.R")
+
+required_packages <- c("dplyr", "ggplot2", "cowplot", "GGally", "rlang", "corrplot", "RColorBrewer")
+
+for (package in required_packages) {
+  if (!suppressPackageStartupMessages(require(package, character.only = TRUE))) {
+    install.packages(package)
+  }
+  suppressPackageStartupMessages(library(package, character.only = TRUE))
+  cat("loaded package:", package,"\n")
+}
+```
+# Checking and Handling Null values
+
+No null values were detected as expected, since the microcontroller handles them beforehand
+```{r}
+df <- read.csv("../data/02_raw_train_data.csv", header=TRUE)
+
+
+for (var in info_univariate$variables) {
+  cat("null values in", var,":",sum(is.na(df[[var]])), "\n")
+}
+```
+
+# Checking for Duplicate rows
+
+No duplicate values were detected
+```{r}
+cat("number of duplicate rows:", nrow(df[duplicated(df), ]))
+```
+
+
+# Checking for outliers
+
+All variables contain outliers, with light_level having the most notable but the least amount.
+```{r}
+findOutliers(df, info_univariate)
+```
+
+# Handling outliers
+
+The expected range of the light_level variable is 100-705lux in a mixed indoor/outdoor environment. less than 100 lux would mean that the sensor was covered. more than 750 would mean unexpected exposure to sunlight. Therefore since these values are unexpected and less than 5% of the dataset, they can be dropped.\
+\
+The outliers present in temperature, humidity and uv_level are possible natural values, therefore it cannot be removed or imputed. Since the univariate analysis showed imperfections in the data as well as outliers detected here, the data is transformed using a reciprocal transformation.\
+\
+The values in each variable use different units and different ranges, so they are all scaled to fit between 0 and 1 using min max scaling.
+```{r}
+df_clean <- df[df$light_level >= 100 & df$light_level <= 750, ]
+write.csv(df_clean, file = "../data/04_no_outliers.csv", row.names = FALSE)
+
+df_transformed <- reciprocal_transform(df_clean)
+write.csv(df_transformed, file = "../data/05_transformed.csv", row.names = FALSE)
+
+df_scaled <- min_max_scale(df_transformed, 0, 1)
+write.csv(df_scaled, file = "../data/06_scaled.csv", row.names = FALSE)
+
+head(df_scaled)
+```
+
+# Further Analysis
+
+```{r, message=FALSE, warning=FALSE}
+create_plots(df_scaled, info_univariate,"boxplot", "02", "boxplots", 4)
+create_plots(df_scaled, info_univariate,"histogram", "02", "histograms")
+create_plots(df_scaled, info_univariate,"density", "02", "density_plots")
+create_plots(df_scaled, info_univariate,"qq", "02", "Q-Q_plots")
+
+create_bivariate_plot(df_scaled, info_bivariate, "01")
+
+create_multivariate_plot(df_scaled, info_univariate, "02")
+```
+
+## Insights:
+
+* Variables are closer to a normal distribution but not perfectly normal.
+* The outliers have been handled as best as possible
+* They have the same scale so a regression model can be fitted easily.
+* The correlation of temperature and light_level still indicate it will not be a prominent predictor in the linear model
+
+
